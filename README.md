@@ -206,30 +206,6 @@ morviq_renderer [options]
 
 ### Project Structure
 ```
-morviq/
-   packages/
-      morviq-web/          # Next.js frontend
-         app/              # App router pages and components
-         components/       # React components
-         store/            # Zustand stores
-      morviq-gateway/       # Node.js API gateway
-         src/
-            control/      # Renderer control client
-            session/      # Session management
-            stream/       # Frame streaming
-            webrtc/       # WebRTC SFU (optional)
-         dist/             # TypeScript build output
-      morviq-renderer/      # C++ MPI renderer
-          include/          # Header files
-          src/              # Source files
-             compositor/   # Depth compositing
-             control/      # TCP control server
-             data/         # Data loaders (Zarr, etc.)
-             renderer/     # Volume rendering
-             codec/        # Frame encoding
-          build/            # CMake build directory
-   ideas/                    # Design documents and prototypes
-```
 
 ### Building for Production
 
@@ -348,16 +324,16 @@ QUALITY low|medium|high\n
 ## Roadmap
 
 ### Phase 1 (Current)
--  Basic multi-GPU renderer with MPI
--  Web UI with streaming viewer
--  Session management and control
--  PNG frame encoding
+- Basic multi-GPU renderer with MPI
+- Web UI with streaming viewer
+- Session management and control
+- PNG frame encoding
 
 ### Phase 2 (In Progress)
-- � WebRTC streaming with hardware encoding
-- � Zarr/N5 data loading
-- � GPU-accelerated compositing
-- � Wild-sheaf analysis integration
+- WebRTC streaming with hardware encoding
+- Zarr/N5 data loading
+- GPU-accelerated compositing
+- Wild-sheaf analysis integration
 
 ### Phase 3 (Future)
 - Advanced LOD with octree acceleration
