@@ -61,6 +61,12 @@ export class RendererClient {
     const line = `QUALITY ${q}`;
     this.send(line);
   }
+  
+  setBioelectricParams(params: any) {
+    // Send bioelectric parameters as JSON
+    const line = `BIOELECTRIC ${JSON.stringify(params)}`;
+    this.send(line);
+  }
 
   cleanup() {
     this.connecting = false;

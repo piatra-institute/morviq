@@ -5,6 +5,7 @@
 #include <chrono>
 #include <thread>
 #include "renderer/Renderer.h"
+#include "renderer/VolumeRenderer.h"
 #include "utils/Logger.h"
 #include "control/ControlServer.h"
 
@@ -162,7 +163,7 @@ int main(int argc, char* argv[]) {
             if (rank == 0) {
                 s = control.getState();
             }
-            // Broadcast projection, view, viewport, quality and timestep
+            // Broadcast projection, view, viewport, quality, timestep and bioelectric params
             if (rank == 0) {
                 // pack viewport to int array
             }
@@ -171,6 +172,14 @@ int main(int argc, char* argv[]) {
             MPI_Bcast(s.viewport, 2, MPI_INT, 0, MPI_COMM_WORLD);
             MPI_Bcast(&s.timeStep, 1, MPI_INT, 0, MPI_COMM_WORLD);
             MPI_Bcast(&s.quality, 1, MPI_INT, 0, MPI_COMM_WORLD);
+            
+            // Broadcast bioelectric params as string length + data
+            int bioParamsLen = s.bioelectricParams.length();
+            MPI_Bcast(&bioParamsLen, 1, MPI_INT, 0, MPI_COMM_WORLD);
+            if (bioParamsLen > 0) {
+                if (rank != 0) s.bioelectricParams.resize(bioParamsLen);
+                MPI_Bcast(const_cast<char*>(s.bioelectricParams.data()), bioParamsLen, MPI_CHAR, 0, MPI_COMM_WORLD);
+            }
 
             // Apply camera from shared state
             for (int i = 0; i < 16; ++i) { camera.projection.m[i] = s.projection[i]; camera.view.m[i] = s.view[i]; }
@@ -183,6 +192,11 @@ int main(int argc, char* argv[]) {
             else if (s.quality == 2) { params.quality = 3; params.stepSize = 0.005f; }
             else { params.quality = 1; params.stepSize = 0.01f; }
             renderer.setRenderParams(params);
+            
+            // Apply bioelectric parameters if present
+            if (!s.bioelectricParams.empty()) {
+                renderer.getVolumeRenderer()->setBioelectricParams(s.bioelectricParams);
+            }
             
             if (!renderer.render()) {
                 LOG_ERROR("Rendering failed");

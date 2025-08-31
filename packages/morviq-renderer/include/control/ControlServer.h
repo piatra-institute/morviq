@@ -13,6 +13,7 @@ struct ControlState {
     int viewport[2]; // width, height
     int timeStep;
     int quality; // 0=low,1=medium,2=high
+    std::string bioelectricParams; // JSON string with bioelectric parameters
 };
 
 class ControlServer {

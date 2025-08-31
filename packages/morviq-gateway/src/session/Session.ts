@@ -96,6 +96,9 @@ export class Session {
       case 'overlays':
         this.updateOverlays(message.data);
         break;
+      case 'bioelectric':
+        this.updateBioelectricParams(message.data);
+        break;
       case 'heartbeat':
         this.handleHeartbeat();
         break;
@@ -163,6 +166,17 @@ export class Session {
     this.broadcast({
       type: 'stateUpdate',
       data: { overlays: this.state.overlays }
+    });
+  }
+  
+  private updateBioelectricParams(params: any): void {
+    // Forward bioelectric parameters to renderer
+    if (this.rendererClient) {
+      this.rendererClient.setBioelectricParams(params);
+    }
+    this.broadcast({
+      type: 'bioelectricUpdate',
+      data: params
     });
   }
   

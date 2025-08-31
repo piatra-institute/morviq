@@ -4,11 +4,12 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Box, CircularProgress, Typography } from '@mui/material';
 
 interface RenderCanvasProps {
+  sessionId?: string | null;
   onFpsUpdate?: (fps: number) => void;
   onConnectionChange?: (connected: boolean) => void;
 }
 
-export default function RenderCanvas({ onFpsUpdate, onConnectionChange }: RenderCanvasProps) {
+export default function RenderCanvas({ sessionId: propSessionId, onFpsUpdate, onConnectionChange }: RenderCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,30 +28,32 @@ export default function RenderCanvas({ onFpsUpdate, onConnectionChange }: Render
 
     let isConnected = false;
     let reconnectTimer: NodeJS.Timeout;
-    let sessionId: string | null = null;
 
     const connectToStream = async () => {
       const gatewayUrl = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
       
-      // First create a session
-      try {
-        const sessionResponse = await fetch(`${gatewayUrl}/api/sessions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: 'web-viewer' })
-        });
-        
-        if (!sessionResponse.ok) {
-          throw new Error(`Failed to create session: ${sessionResponse.status}`);
+      // Use provided sessionId or create a new one
+      let sessionId = propSessionId;
+      if (!sessionId) {
+        try {
+          const sessionResponse = await fetch(`${gatewayUrl}/api/sessions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: 'web-viewer' })
+          });
+          
+          if (!sessionResponse.ok) {
+            throw new Error(`Failed to create session: ${sessionResponse.status}`);
+          }
+          
+          const sessionData = await sessionResponse.json();
+          sessionId = sessionData.sessionId;
+        } catch (err) {
+          console.error('Failed to create session:', err);
+          setError('Failed to create session');
+          reconnectTimer = setTimeout(connectToStream, 2000);
+          return;
         }
-        
-        const sessionData = await sessionResponse.json();
-        sessionId = sessionData.sessionId;
-      } catch (err) {
-        console.error('Failed to create session:', err);
-        setError('Failed to create session');
-        reconnectTimer = setTimeout(connectToStream, 2000);
-        return;
       }
       
       const streamUrl = `${gatewayUrl}/api/stream?session=${sessionId}`;
@@ -215,7 +218,7 @@ export default function RenderCanvas({ onFpsUpdate, onConnectionChange }: Render
     return () => {
       clearTimeout(reconnectTimer);
     };
-  }, [onFpsUpdate, onConnectionChange]);
+  }, [propSessionId, onFpsUpdate, onConnectionChange]);
 
   return (
     <Box sx={{ 

@@ -13,6 +13,7 @@ export interface Frame {
 export class StreamManager {
   private frames: Map<number, Frame> = new Map();
   private latestFrameId: number = -1;
+  private latestFrameTimestamp: number = 0;
   private watcher: FSWatcher | null = null;
   
   constructor(
@@ -97,9 +98,10 @@ export class StreamManager {
       };
       
       this.frames.set(frameId, frame);
-      if (frameId > this.latestFrameId) {
+      if (frameId > this.latestFrameId || stats.mtimeMs > this.latestFrameTimestamp) {
         this.latestFrameId = frameId;
-        this.logger.info({ frameId, path: filePath, size: stats.size }, 'New frame detected');
+        this.latestFrameTimestamp = stats.mtimeMs;
+        this.logger.info({ frameId, path: filePath, size: stats.size, mtime: stats.mtimeMs }, 'Frame updated');
       }
     } catch (error) {
       this.logger.error({ error, path: filePath }, 'Failed to process new frame');
@@ -160,6 +162,10 @@ export class StreamManager {
   
   getLatestFrameId(): number {
     return this.latestFrameId;
+  }
+  
+  getLatestFrameTimestamp(): number {
+    return this.latestFrameTimestamp;
   }
   
   cleanup(): void {

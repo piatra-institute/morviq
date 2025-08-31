@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useWebSocket } from '../hooks/useWebSocket';
 import { 
   Box, 
   Typography, 
@@ -32,14 +33,19 @@ interface IonPump {
   enabled: boolean;
 }
 
-export default function BioelectricControls() {
+interface BioelectricControlsProps {
+  sessionId?: string;
+}
+
+export default function BioelectricControls({ sessionId }: BioelectricControlsProps) {
+  const { sendBioelectricParams } = useWebSocket(sessionId || null);
   const [playing, setPlaying] = useState(false);
   
   // Ion concentrations (mM)
   const [sodium, setSodium] = useState(145); // Extracellular
   const [potassium, setPotassium] = useState(5);
   const [chloride, setChloride] = useState(110);
-  const [calcium, setCacium] = useState(2);
+  const [calcium, setCalcium] = useState(2);
   
   // Membrane properties
   const [restingPotential, setRestingPotential] = useState(-70); // mV
@@ -81,6 +87,7 @@ export default function BioelectricControls() {
       newChannels[index].enabled = value as boolean;
     }
     setChannels(newChannels);
+    sendParameters();
   };
   
   const handlePumpChange = (index: number, field: 'rate' | 'enabled', value: number | boolean) => {
@@ -91,6 +98,30 @@ export default function BioelectricControls() {
       newPumps[index].enabled = value as boolean;
     }
     setPumps(newPumps);
+    sendParameters();
+  };
+  
+  // Send all parameters to the renderer
+  const sendParameters = () => {
+    sendBioelectricParams({
+      ionConcentrations: {
+        sodium,
+        potassium,
+        chloride,
+        calcium
+      },
+      membraneProperties: {
+        restingPotential,
+        capacitance: membraneCapacitance,
+        temperature
+      },
+      channels,
+      pumps,
+      gapJunctions: {
+        conductance: gapJunctionConductance,
+        enabled: gapJunctionEnabled
+      }
+    });
   };
 
   return (
@@ -128,7 +159,10 @@ export default function BioelectricControls() {
             <Typography variant="body2">Na+ (Extracellular)</Typography>
             <Slider
               value={sodium}
-              onChange={(_, v) => setSodium(v as number)}
+              onChange={(_, v) => {
+                setSodium(v as number);
+                sendParameters();
+              }}
               min={0}
               max={200}
               valueLabelDisplay="auto"
@@ -138,7 +172,10 @@ export default function BioelectricControls() {
             <Typography variant="body2">K+ (Extracellular)</Typography>
             <Slider
               value={potassium}
-              onChange={(_, v) => setPotassium(v as number)}
+              onChange={(_, v) => {
+                setPotassium(v as number);
+                sendParameters();
+              }}
               min={0}
               max={50}
               valueLabelDisplay="auto"
@@ -148,7 +185,10 @@ export default function BioelectricControls() {
             <Typography variant="body2">Cl- (Extracellular)</Typography>
             <Slider
               value={chloride}
-              onChange={(_, v) => setChloride(v as number)}
+              onChange={(_, v) => {
+                setChloride(v as number);
+                sendParameters();
+              }}
               min={0}
               max={150}
               valueLabelDisplay="auto"
@@ -158,7 +198,10 @@ export default function BioelectricControls() {
             <Typography variant="body2">Ca2+ (Extracellular)</Typography>
             <Slider
               value={calcium}
-              onChange={(_, v) => setCacium(v as number)}
+              onChange={(_, v) => {
+                setCalcium(v as number);
+                sendParameters();
+              }}
               min={0}
               max={10}
               step={0.1}

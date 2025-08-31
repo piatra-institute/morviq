@@ -71,6 +71,16 @@ bool ControlServer::start(int port, std::function<void(const ControlState&)> onU
                             if (q == "low") state.quality = 0; else if (q == "high") state.quality = 2; else state.quality = 1;
                             onUpdate(state);
                         }
+                    } else if (cmd == "BIOELECTRIC") {
+                        // Format: BIOELECTRIC <JSON>
+                        std::string json;
+                        if (std::getline(iss, json)) {
+                            // Remove leading space
+                            size_t p = json.find_first_not_of(' ');
+                            if (p != std::string::npos) json = json.substr(p);
+                            state.bioelectricParams = json;
+                            onUpdate(state);
+                        }
                     } else if (cmd == "CAMERA") {
                         // Format: CAMERA <16 floats proj>;<16 floats view>;<w> <h>
                         std::string proj, view; if (std::getline(iss, proj)) {

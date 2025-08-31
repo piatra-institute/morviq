@@ -137,6 +137,7 @@ export function setupRoutes(
     
     // Immediately send the latest available frame once
     let lastFrameId = -1;
+    let lastFrameTimestamp = 0;
     const initialId = streamManager.getLatestFrameId();
     logger.info({ initialId, framesAvailable: streamManager.getAllFrames().length }, 'Initial stream state');
     
@@ -150,6 +151,7 @@ export function setupRoutes(
         res.write(frame);
         res.write('\r\n');
         lastFrameId = initialId;
+        lastFrameTimestamp = streamManager.getLatestFrameTimestamp();
       } else {
         logger.warn({ frameId: initialId }, 'No frame data for initial frame');
       }
@@ -158,8 +160,9 @@ export function setupRoutes(
     }
     const interval = setInterval(async () => {
       const currentFrameId = streamManager.getLatestFrameId();
+      const currentTimestamp = streamManager.getLatestFrameTimestamp();
       
-      if (currentFrameId > lastFrameId) {
+      if (currentFrameId > lastFrameId || currentTimestamp > lastFrameTimestamp) {
         const frame = await streamManager.getLatestFrame();
         
         if (frame) {
@@ -171,6 +174,7 @@ export function setupRoutes(
           res.write('\r\n');
           
           lastFrameId = currentFrameId;
+          lastFrameTimestamp = currentTimestamp;
         } else {
           logger.warn({ frameId: currentFrameId }, 'Failed to read frame for streaming');
         }

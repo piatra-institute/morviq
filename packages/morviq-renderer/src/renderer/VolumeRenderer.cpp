@@ -38,72 +38,106 @@ void VolumeRenderer::setRenderParams(const RenderParams& params) {
     renderParams = params;
 }
 
-void VolumeRenderer::renderBrick(const BrickInfo& brick, Frame& frame) {
-    // Generate 3D bioelectric volume data if not present
+void VolumeRenderer::setBioelectricParams(const std::string& jsonParams) {
+    // Simple JSON parsing for bioelectric parameters
+    // In production, use a proper JSON library
+    if (jsonParams.find("sodium") != std::string::npos) {
+        size_t pos = jsonParams.find("\"sodium\":");
+        if (pos != std::string::npos) {
+            pos = jsonParams.find(":", pos) + 1;
+            bioelectricState.sodiumConc = std::stof(jsonParams.substr(pos));
+        }
+    }
+    if (jsonParams.find("potassium") != std::string::npos) {
+        size_t pos = jsonParams.find("\"potassium\":");
+        if (pos != std::string::npos) {
+            pos = jsonParams.find(":", pos) + 1;
+            bioelectricState.potassiumConc = std::stof(jsonParams.substr(pos));
+        }
+    }
+    if (jsonParams.find("restingPotential") != std::string::npos) {
+        size_t pos = jsonParams.find("\"restingPotential\":");
+        if (pos != std::string::npos) {
+            pos = jsonParams.find(":", pos) + 1;
+            bioelectricState.restingPotential = std::stof(jsonParams.substr(pos));
+        }
+    }
+    
+    // Regenerate volume data with new parameters
+    if (volumeData) {
+        generateBioelectricVolume();
+    }
+}
+
+void VolumeRenderer::generateBioelectricVolume() {
     if (!volumeData) {
-        LOG_INFO("Generating 3D bioelectric tissue volume");
         volumeData = std::make_unique<VolumeData>();
         volumeData->dimensions[0] = 64;
         volumeData->dimensions[1] = 64;
         volumeData->dimensions[2] = 64;
         volumeData->voxelCount = 64 * 64 * 64;
         volumeData->data = std::make_unique<float[]>(volumeData->voxelCount);
-        
-        // Generate realistic bioelectric tissue patterns
-        for (int z = 0; z < 64; ++z) {
-            for (int y = 0; y < 64; ++y) {
-                for (int x = 0; x < 64; ++x) {
-                    float fx = x / 63.0f;
-                    float fy = y / 63.0f;
-                    float fz = z / 63.0f;
-                    
-                    // Base tissue potential (resting)
-                    float value = 0.4f;
-                    
-                    // Add bioelectric structures
-                    
-                    // Central hyperpolarized region (stem cell niche)
-                    float dx = fx - 0.5f;
-                    float dy = fy - 0.5f;
-                    float dz = fz - 0.5f;
-                    float dist = std::sqrt(dx*dx + dy*dy + dz*dz);
-                    if (dist < 0.25f) {
-                        value = 0.1f + (1.0f - dist/0.25f) * 0.2f;
-                    }
-                    
-                    // Depolarized cancer-like region
-                    dx = fx - 0.7f;
-                    dy = fy - 0.3f;
-                    dz = fz - 0.6f;
-                    dist = std::sqrt(dx*dx + dy*dy + dz*dz);
-                    if (dist < 0.2f) {
-                        value = std::max(value, 0.8f + (1.0f - dist/0.2f) * 0.2f);
-                    }
-                    
-                    // Action potential wave (traveling depolarization)
-                    float wave = std::sin((fx + fy) * 10.0f - fz * 5.0f) * 0.1f;
-                    value += wave;
-                    
-                    // Wound/injury site (highly depolarized)
-                    dx = fx - 0.2f;
-                    dy = fy - 0.7f;
-                    dz = fz - 0.3f;
-                    dist = std::sqrt(dx*dx + dy*dy + dz*dz);
-                    if (dist < 0.15f) {
-                        value = std::max(value, 0.9f);
-                    }
-                    
-                    // Gap junction network pattern
-                    float network = std::sin(fx * 20.0f) * std::sin(fy * 20.0f) * std::sin(fz * 20.0f) * 0.05f;
-                    value += network;
-                    
-                    value = std::max(0.0f, std::min(1.0f, value));
-                    
-                    int idx = x + y * 64 + z * 64 * 64;
-                    volumeData->data[idx] = value;
+    }
+    
+    // Generate realistic bioelectric tissue patterns
+    for (int z = 0; z < 64; ++z) {
+        for (int y = 0; y < 64; ++y) {
+            for (int x = 0; x < 64; ++x) {
+                float fx = x / 63.0f;
+                float fy = y / 63.0f;
+                float fz = z / 63.0f;
+                
+                // Base tissue potential normalized from resting potential
+                float baseVoltage = bioelectricState.restingPotential;
+                float value = (baseVoltage + 100.0f) / 200.0f; // Normalize -100mV to +100mV -> 0 to 1
+                
+                // Central hyperpolarized region (influenced by ion concentrations)
+                float dx = fx - 0.5f;
+                float dy = fy - 0.5f;
+                float dz = fz - 0.5f;
+                float dist = std::sqrt(dx*dx + dy*dy + dz*dz);
+                if (dist < 0.25f) {
+                    // Hyperpolarization influenced by K+ concentration
+                    float hyperpolarization = bioelectricState.potassiumConc / 50.0f;
+                    value = 0.1f * hyperpolarization + (1.0f - dist/0.25f) * 0.2f;
                 }
+                
+                // Depolarized region (influenced by Na+ concentration)
+                dx = fx - 0.7f;
+                dy = fy - 0.3f;
+                dz = fz - 0.6f;
+                dist = std::sqrt(dx*dx + dy*dy + dz*dz);
+                if (dist < 0.2f) {
+                    float depolarization = bioelectricState.sodiumConc / 145.0f;
+                    value = std::max(value, 0.8f * depolarization + (1.0f - dist/0.2f) * 0.2f);
+                }
+                
+                // Action potential wave (modulated by ion channel conductances)
+                float waveStrength = (bioelectricState.navConductance + bioelectricState.kvConductance) / 300.0f;
+                float wave = std::sin((fx + fy) * 10.0f - fz * 5.0f) * 0.1f * waveStrength;
+                value += wave;
+                
+                // Gap junction network pattern
+                if (bioelectricState.gapJunctionsEnabled) {
+                    float networkStrength = bioelectricState.gapJunctionCond / 100.0f;
+                    float network = std::sin(fx * 20.0f) * std::sin(fy * 20.0f) * std::sin(fz * 20.0f) * 0.05f * networkStrength;
+                    value += network;
+                }
+                
+                value = std::max(0.0f, std::min(1.0f, value));
+                
+                int idx = x + y * 64 + z * 64 * 64;
+                volumeData->data[idx] = value;
             }
         }
+    }
+}
+
+void VolumeRenderer::renderBrick(const BrickInfo& brick, Frame& frame) {
+    // Generate 3D bioelectric volume data if not present
+    if (!volumeData) {
+        LOG_INFO("Generating 3D bioelectric tissue volume");
+        generateBioelectricVolume();
     }
     
     // 3D Ray marching through the volume

@@ -24,6 +24,7 @@ public:
     void setCamera(const Camera& camera);
     void setTransferFunction(const TransferFunction& tf);
     void setRenderParams(const RenderParams& params);
+    VolumeRenderer* getVolumeRenderer() { return volumeRenderer.get(); }
     
     bool render();
     const Frame& getFrame() const { return *currentFrame; }
